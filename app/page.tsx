@@ -72,7 +72,7 @@ export default function Home() {
           
           <div className="header-meta">
             <a 
-              href="https://github.com" 
+              href="https://github.com/ni5arga/sightline" 
               target="_blank" 
               rel="noopener noreferrer"
               className="header-link"
