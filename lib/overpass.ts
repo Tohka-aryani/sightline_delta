@@ -141,12 +141,14 @@ export async function executeQuery(query: string): Promise<Asset[]> {
 }
 
 function extractName(tags: Record<string, string>): string {
-  return tags.name || 
-         tags['name:en'] || 
-         tags.ref || 
-         tags.description ||
-         tags.operator ||
-         'Unnamed';
+  return (
+    tags['name:en'] ||
+    tags.name ||
+    tags.ref ||
+    tags.description ||
+    tags.operator ||
+    'Unnamed'
+  );
 }
 
 function extractType(tags: Record<string, string>): string {

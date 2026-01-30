@@ -12,6 +12,7 @@ interface MapViewProps {
   onSelect: (id: string) => void;
   filterOperator: string | null;
   filterType: string | null;
+  translatedNames?: Record<string, string> | null;
 }
 
 const TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
@@ -45,6 +46,7 @@ export default function MapView({
   onSelect,
   filterOperator,
   filterType,
+  translatedNames = null,
 }: MapViewProps) {
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<Map<string, L.Marker>>(new Map());
@@ -89,18 +91,29 @@ export default function MapView({
     };
   }, []);
 
-  const createPopupContent = useCallback((asset: Asset): string => {
-    const tags = Object.entries(asset.tags)
-      .slice(0, 5)
-      .map(
-        ([k, v]) =>
-          `<tr><td class="popup-key">${k}</td><td class="popup-value">${v}</td></tr>`,
-      )
-      .join("");
+  const createPopupContent = useCallback(
+    (asset: Asset): string => {
+      const displayName = translatedNames?.[asset.id] ?? asset.name;
+      const isUnnamed =
+        !displayName?.trim() || displayName === "Unnamed";
+      const titleClass = isUnnamed ? "popup-title unnamed" : "popup-title";
+      const escape = (s: string) =>
+        s
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      const tags = Object.entries(asset.tags)
+        .slice(0, 5)
+        .map(
+          ([k, v]) =>
+            `<tr><td class="popup-key">${escape(k)}</td><td class="popup-value">${escape(v)}</td></tr>`,
+        )
+        .join("");
 
-    return `
+      return `
       <div class="map-popup">
-        <div class="popup-title">${asset.name}</div>
+        <div class="${titleClass}">${escape(displayName)}</div>
         <div class="popup-type">${asset.type}</div>
         ${asset.operator ? `<div class="popup-operator">${asset.operator}</div>` : ""}
         <div class="popup-coords">${asset.lat.toFixed(5)}, ${asset.lon.toFixed(5)}</div>
@@ -108,7 +121,9 @@ export default function MapView({
         <a class="popup-osm-link" href="https://www.openstreetmap.org/${asset.id}" target="_blank" rel="noopener">View on OSM</a>
       </div>
     `;
-  }, []);
+    },
+    [translatedNames],
+  );
 
   useEffect(() => {
     const map = mapRef.current;

@@ -388,7 +388,9 @@ vercel
 
 ### Environment Variables
 
-No environment variables required. The application uses public OpenStreetMap APIs.
+No environment variables required for basic use. The application uses public OpenStreetMap APIs.
+
+- **`OPENAI_API_KEY`** (optional): If set, asset names that appear to be in non-Latin scripts are translated to English via OpenAI (gpt-4o-mini). Without this key, names are shown as in OSM (English `name:en` is preferred when present).
 
 ### API Rate Limits
 

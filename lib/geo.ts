@@ -2,7 +2,8 @@ import { GeoResult } from './types';
 
 const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org';
 const USER_AGENT = 'Sightline/1.0';
-const TIMEOUT_MS = 10000;
+const TIMEOUT_MS = 20000;
+const GEOCODE_RETRIES = 2;
 
 interface NominatimResponse {
   place_id: number;
@@ -29,7 +30,7 @@ interface NominatimResponse {
 async function fetchWithTimeout(url: string, options: RequestInit, timeout: number): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
-  
+
   try {
     const response = await fetch(url, {
       ...options,
@@ -39,6 +40,11 @@ async function fetchWithTimeout(url: string, options: RequestInit, timeout: numb
     return response;
   } catch (error) {
     clearTimeout(timeoutId);
+    const cause = error instanceof Error ? (error as Error & { cause?: { code?: string } }).cause : undefined;
+    const isTimeout = controller.signal.aborted || cause?.code === 'ETIMEDOUT';
+    if (isTimeout) {
+      throw new Error('Request timed out');
+    }
     throw error;
   }
 }
@@ -56,38 +62,54 @@ export async function geocode(query: string, countryCode?: string): Promise<GeoR
   }
 
   const url = `${NOMINATIM_BASE}/search?${params}`;
-
-  const response = await fetchWithTimeout(url, {
+  const fetchOptions: RequestInit = {
     headers: {
       'User-Agent': USER_AGENT,
       'Accept': 'application/json'
     }
-  }, TIMEOUT_MS);
+  };
 
-  if (!response.ok) {
-    throw new Error(`Nominatim request failed: ${response.status}`);
+  let lastError: Error | null = null;
+  for (let attempt = 1; attempt <= GEOCODE_RETRIES; attempt++) {
+    try {
+      const response = await fetchWithTimeout(url, fetchOptions, TIMEOUT_MS);
+
+      if (!response.ok) {
+        throw new Error(`Nominatim request failed: ${response.status}`);
+      }
+
+      const data: NominatimResponse[] = await response.json();
+
+      return data.map((item) => ({
+        displayName: item.display_name,
+        lat: parseFloat(item.lat),
+        lon: parseFloat(item.lon),
+        boundingBox: [
+          parseFloat(item.boundingbox[0]),
+          parseFloat(item.boundingbox[1]),
+          parseFloat(item.boundingbox[2]),
+          parseFloat(item.boundingbox[3])
+        ] as [number, number, number, number],
+        type: item.type,
+        importance: item.importance,
+        addressComponents: {
+          country: item.address?.country,
+          state: item.address?.state,
+          city: item.address?.city || item.address?.town || item.address?.village
+        }
+      }));
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      const isTimeout = lastError.message.includes('timed out');
+      if (attempt < GEOCODE_RETRIES && isTimeout) {
+        await new Promise((r) => setTimeout(r, 1000 * attempt));
+        continue;
+      }
+      throw lastError;
+    }
   }
 
-  const data: NominatimResponse[] = await response.json();
-
-  return data.map((item) => ({
-    displayName: item.display_name,
-    lat: parseFloat(item.lat),
-    lon: parseFloat(item.lon),
-    boundingBox: [
-      parseFloat(item.boundingbox[0]),
-      parseFloat(item.boundingbox[1]),
-      parseFloat(item.boundingbox[2]),
-      parseFloat(item.boundingbox[3])
-    ] as [number, number, number, number],
-    type: item.type,
-    importance: item.importance,
-    addressComponents: {
-      country: item.address?.country,
-      state: item.address?.state,
-      city: item.address?.city || item.address?.town || item.address?.village
-    }
-  }));
+  throw lastError ?? new Error('Geocoding failed');
 }
 
 export async function resolveLocation(

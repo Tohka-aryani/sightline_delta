@@ -4,12 +4,19 @@ import { useCallback, useMemo, useRef, useEffect } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Asset } from "@/lib/types";
 
+function isUnnamed(name: string | undefined): boolean {
+  return !name?.trim() || name === "Unnamed";
+}
+
 interface ResultListProps {
   results: Asset[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   filterOperator: string | null;
   filterType: string | null;
+  translatedNames?: Record<string, string> | null;
+  onTranslate?: () => void;
+  translateLoading?: boolean;
 }
 
 export default function ResultList({
@@ -18,6 +25,9 @@ export default function ResultList({
   onSelect,
   filterOperator,
   filterType,
+  translatedNames = null,
+  onTranslate,
+  translateLoading = false,
 }: ResultListProps) {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const selectedRef = useRef<HTMLButtonElement>(null);
@@ -105,30 +115,67 @@ export default function ResultList({
 
   const displayCount = filteredResults.length;
   const totalCount = results.length;
+  const unnamedCount = results.filter((r) => isUnnamed(r.name)).length;
 
   return (
     <div className="results-panel">
       <div className="results-header">
         <span className="results-count">
           {displayCount === totalCount
-            ? `${displayCount.toLocaleString()} results`
-            : `${displayCount.toLocaleString()} of ${totalCount.toLocaleString()}`}
+            ? `${displayCount.toLocaleString()} results${unnamedCount > 0 ? ` (${unnamedCount} unnamed)` : ""}`
+            : `${displayCount.toLocaleString()} of ${totalCount.toLocaleString()} results${unnamedCount > 0 ? ` (${unnamedCount} unnamed)` : ""}`}
         </span>
+        {onTranslate && results.length > 0 && (
+          <button
+            type="button"
+            className="export-button"
+            onClick={(e) => {
+              e.preventDefault();
+              onTranslate();
+            }}
+            disabled={translateLoading}
+            title="Translate names to English"
+            aria-label="Translate names to English"
+          >
+            {translateLoading ? (
+              <span className="export-text">Translating…</span>
+            ) : (
+              <>
+                <svg
+                  className="export-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+                </svg>
+                <span className="export-text">Translate</span>
+              </>
+            )}
+          </button>
+        )}
       </div>
 
       <ScrollArea ref={scrollAreaRef} className="results-list-scroll">
         <div className="results-list-content">
-          {filteredResults.map((asset, index) => (
+          {filteredResults.map((asset, index) => {
+            const displayName = translatedNames?.[asset.id] ?? asset.name;
+            const unnamed = isUnnamed(displayName);
+            return (
             <button
               key={asset.id}
               ref={selectedId === asset.id ? selectedRef : null}
-              className={`result-item ${selectedId === asset.id ? "selected" : ""}`}
+              className={`result-item ${selectedId === asset.id ? "selected" : ""} ${unnamed ? "unnamed" : ""}`}
               onClick={() => onSelect(asset.id)}
               onKeyDown={(e) => handleKeyDown(e, asset.id, index)}
               tabIndex={0}
             >
               <div className="result-header">
-                <span className="result-name">{asset.name}</span>
+                <span className="result-name">{displayName}</span>
                 <span className="result-type">{asset.type}</span>
               </div>
 
@@ -158,7 +205,8 @@ export default function ResultList({
                 </div>
               )}
             </button>
-          ))}
+          );
+          })}
         </div>
       </ScrollArea>
     </div>

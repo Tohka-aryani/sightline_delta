@@ -120,9 +120,14 @@ export async function POST(request: NextRequest): Promise<NextResponse<SearchRes
         );
       }
       
-      if (error.message.includes('aborted') || error.message.includes('timeout')) {
+      const cause = (error as Error & { cause?: { code?: string } }).cause;
+      const isTimeout =
+        error.message.toLowerCase().includes('aborted') ||
+        error.message.toLowerCase().includes('timeout') ||
+        cause?.code === 'ETIMEDOUT';
+      if (isTimeout) {
         return NextResponse.json(
-          { error: 'Request timed out. Try a smaller search area.', code: 'TIMEOUT' },
+          { error: 'Request timed out. Try again or check your connection.', code: 'TIMEOUT' },
           { status: 504 }
         );
       }
