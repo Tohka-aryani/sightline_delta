@@ -82,10 +82,6 @@ function HomeContent() {
   const [filterOperator, setFilterOperator] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<string | null>(null);
 
-  // Translated names (from Translate button)
-  const [translatedNames, setTranslatedNames] = useState<Record<string, string> | null>(null);
-  const [translateLoading, setTranslateLoading] = useState(false);
-
   // UI state
   const [mobileTab, setMobileTab] = useState<MobileTab>("map");
   const breakpoint = useBreakpoint();
@@ -109,7 +105,6 @@ function HomeContent() {
       setSelectedId(null);
       setFilterOperator(null);
       setFilterType(null);
-      setTranslatedNames(null);
       setCurrentQuery(query);
 
       if (updateUrl) {
@@ -185,31 +180,6 @@ function HomeContent() {
     },
     [handleSearch],
   );
-
-  const handleTranslate = useCallback(async () => {
-    if (!searchResult?.results.length || translateLoading) return;
-    setTranslateLoading(true);
-    try {
-      const names = searchResult.results.map((a) => a.name);
-      const res = await fetch("/api/translate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ names }),
-      });
-      const data = await res.json();
-      if (res.ok && Array.isArray(data.translated)) {
-        const map: Record<string, string> = {};
-        searchResult.results.forEach((a, i) => {
-          map[a.id] = data.translated[i] ?? a.name;
-        });
-        setTranslatedNames(map);
-      }
-    } catch (err) {
-      console.error("Translate failed:", err);
-    } finally {
-      setTranslateLoading(false);
-    }
-  }, [searchResult, translateLoading]);
 
   return (
     <div className="app-container">
@@ -305,9 +275,6 @@ function HomeContent() {
             onSelect={handleSelect}
             filterOperator={filterOperator}
             filterType={filterType}
-            translatedNames={translatedNames}
-            onTranslate={handleTranslate}
-            translateLoading={translateLoading}
           />
         </div>
 
@@ -321,7 +288,6 @@ function HomeContent() {
             onSelect={handleSelect}
             filterOperator={filterOperator}
             filterType={filterType}
-            translatedNames={translatedNames}
           />
         </div>
       </main>

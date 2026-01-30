@@ -14,9 +14,6 @@ interface ResultListProps {
   onSelect: (id: string) => void;
   filterOperator: string | null;
   filterType: string | null;
-  translatedNames?: Record<string, string> | null;
-  onTranslate?: () => void;
-  translateLoading?: boolean;
 }
 
 export default function ResultList({
@@ -25,9 +22,6 @@ export default function ResultList({
   onSelect,
   filterOperator,
   filterType,
-  translatedNames = null,
-  onTranslate,
-  translateLoading = false,
 }: ResultListProps) {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const selectedRef = useRef<HTMLButtonElement>(null);
@@ -125,46 +119,12 @@ export default function ResultList({
             ? `${displayCount.toLocaleString()} results${unnamedCount > 0 ? ` (${unnamedCount} unnamed)` : ""}`
             : `${displayCount.toLocaleString()} of ${totalCount.toLocaleString()} results${unnamedCount > 0 ? ` (${unnamedCount} unnamed)` : ""}`}
         </span>
-        {onTranslate && results.length > 0 && (
-          <button
-            type="button"
-            className="export-button"
-            onClick={(e) => {
-              e.preventDefault();
-              onTranslate();
-            }}
-            disabled={translateLoading}
-            title="Translate names to English"
-            aria-label="Translate names to English"
-          >
-            {translateLoading ? (
-              <span className="export-text">Translating…</span>
-            ) : (
-              <>
-                <svg
-                  className="export-icon"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
-                </svg>
-                <span className="export-text">Translate</span>
-              </>
-            )}
-          </button>
-        )}
       </div>
 
       <ScrollArea ref={scrollAreaRef} className="results-list-scroll">
         <div className="results-list-content">
           {filteredResults.map((asset, index) => {
-            const displayName = translatedNames?.[asset.id] ?? asset.name;
-            const unnamed = isUnnamed(displayName);
+            const unnamed = isUnnamed(asset.name);
             return (
             <button
               key={asset.id}
@@ -175,7 +135,7 @@ export default function ResultList({
               tabIndex={0}
             >
               <div className="result-header">
-                <span className="result-name">{displayName}</span>
+                <span className="result-name">{asset.name}</span>
                 <span className="result-type">{asset.type}</span>
               </div>
 
